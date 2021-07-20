@@ -570,9 +570,13 @@ func (c *Config) WriteTemplate(genTemplate *GenTemplate, data map[string]interfa
 	data["daoPackageName"] = c.DaoPackageName
 
 	data["UseGuregu"] = c.UseGureguTypes
+	data["UseGraphql"] = c.UseGraphql
 
 	data["apiFQPN"] = c.APIFQPN
 	data["apiPackageName"] = c.APIPackageName
+
+	data["graphqlFQPN"] = c.GraphqlFQPN
+	data["grapgqlPackageName"] = c.GraphqlPackageName
 
 	data["sqlType"] = c.SQLType
 	data["sqlConnStr"] = c.SQLConnStr
@@ -892,6 +896,7 @@ type Config struct {
 	AddXMLAnnotation      bool
 	AddDBAnnotation       bool
 	UseGureguTypes        bool
+	UseGraphql			  bool
 	JSONNameFormat        string
 	XMLNameFormat         string
 	ProtobufNameFormat    string
@@ -899,6 +904,8 @@ type Config struct {
 	DaoFQPN               string
 	APIPackageName        string
 	APIFQPN               string
+	GraphqlPackageName    string
+	GraphqlFQPN           string
 	GrpcPackageName       string
 	GrpcFQPN              string
 	Swagger               *SwaggerInfoDetails
@@ -953,10 +960,12 @@ func NewConfig(templateLoader TemplateLoader) *Config {
 	modelPackageName := "model"
 	daoPackageName := "dao"
 	apiPackageName := "api"
+    gqlPackageName := "apigraphql"
 
 	conf.ModelPackageName = modelPackageName
 	conf.DaoPackageName = daoPackageName
 	conf.APIPackageName = apiPackageName
+	conf.GraphqlPackageName = gqlPackageName
 
 	conf.AddJSONAnnotation = true
 	conf.AddXMLAnnotation = true
@@ -964,6 +973,7 @@ func NewConfig(templateLoader TemplateLoader) *Config {
 	conf.AddProtobufAnnotation = true
 	conf.AddDBAnnotation = true
 	conf.UseGureguTypes = false
+	conf.UseGraphql = false
 	conf.JSONNameFormat = "snake"
 	conf.XMLNameFormat = "snake"
 	conf.ProtobufNameFormat = "snake"
@@ -981,6 +991,7 @@ func NewConfig(templateLoader TemplateLoader) *Config {
 	conf.ModelFQPN = module + "/" + modelPackageName
 	conf.DaoFQPN = module + "/" + daoPackageName
 	conf.APIFQPN = module + "/" + apiPackageName
+	conf.GraphqlFQPN = module + "/" + gqlPackageName
 
 	if conf.ServerPort == 80 {
 		conf.Swagger.Host = conf.ServerHost

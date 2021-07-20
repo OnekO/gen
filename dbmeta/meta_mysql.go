@@ -45,15 +45,16 @@ func LoadMysqlMeta(db *sql.DB, sqlType, sqlDatabase, tableName string) (DbTableM
 		}
 
 		colDDL := colsDDL[v.Name()]
+		fmt.Errorf(colDDL)
 		isAutoIncrement := strings.Index(colDDL, "AUTO_INCREMENT") > -1
 		isUnsigned := strings.Index(colDDL, " unsigned ") > -1 || strings.Index(colDDL, " UNSIGNED ") > -1
-
 		_, isPrimaryKey := find(primaryKeys, v.Name())
 		defaultVal := ""
 		columnType, columnLen := ParseSQLType(v.DatabaseTypeName())
 
 		if isUnsigned {
 			notes = notes + " column is set for unsigned"
+			columnType = strings.TrimSpace(strings.Replace(columnType, "unsigned", "", 0))
 			columnType = "u" + columnType
 		}
 

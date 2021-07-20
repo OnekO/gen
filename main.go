@@ -43,6 +43,7 @@ var (
 
 	daoPackageName  = goopt.String([]string{"--dao"}, "dao", "name to set for dao package")
 	apiPackageName  = goopt.String([]string{"--api"}, "api", "name to set for api package")
+	gqlPackageName  = goopt.String([]string{"--gql"}, "graphql", "name to set for graphql package")
 	grpcPackageName = goopt.String([]string{"--grpc"}, "grpc", "name to set for grpc package")
 	outDir          = goopt.String([]string{"--out"}, ".", "output dir")
 	module          = goopt.String([]string{"--module"}, "example.com/example", "module path")
@@ -67,6 +68,7 @@ var (
 
 	addDBAnnotation = goopt.Flag([]string{"--db"}, []string{}, "Add db annotations (tags)", "")
 	useGureguTypes  = goopt.Flag([]string{"--guregu"}, []string{}, "Add guregu null types", "")
+	useGraphql  = goopt.Flag([]string{"--graphql"}, []string{}, "Add graphql support", "")
 
 	copyTemplates    = goopt.Flag([]string{"--copy-templates"}, []string{}, "Copy regeneration templates to project directory", "")
 	modGenerate      = goopt.Flag([]string{"--mod"}, []string{}, "Generate go.mod in output dir", "")
@@ -345,6 +347,9 @@ func initialize(conf *dbmeta.Config) {
 	if apiPackageName == nil || *apiPackageName == "" {
 		*apiPackageName = "api"
 	}
+	if gqlPackageName == nil || *gqlPackageName == "" {
+		*gqlPackageName = "graphql"
+	}
 
 	conf.SQLType = *sqlType
 	conf.SQLDatabase = *sqlDatabase
@@ -355,6 +360,7 @@ func initialize(conf *dbmeta.Config) {
 	conf.AddProtobufAnnotation = *addProtobufAnnotation
 	conf.AddDBAnnotation = *addDBAnnotation
 	conf.UseGureguTypes = *useGureguTypes
+	conf.UseGraphql = *useGraphql
 	conf.JSONNameFormat = *jsonNameFormat
 	conf.XMLNameFormat = *xmlNameFormat
 	conf.ProtobufNameFormat = *protoNameFormat
@@ -378,6 +384,9 @@ func initialize(conf *dbmeta.Config) {
 
 	conf.APIPackageName = *apiPackageName
 	conf.APIFQPN = *module + "/" + *apiPackageName
+
+	conf.GraphqlPackageName = *gqlPackageName
+	conf.GraphqlFQPN = *module + "/" + *gqlPackageName
 
 	conf.GrpcPackageName = *grpcPackageName
 	conf.GrpcFQPN = *module + "/" + *grpcPackageName
@@ -455,6 +464,7 @@ func execTemplate(conf *dbmeta.Config, genTemplate *dbmeta.GenTemplate, data map
 	data["modelPackageName"] = *modelPackageName
 	data["daoPackageName"] = *daoPackageName
 	data["apiPackageName"] = *apiPackageName
+	data["gqlPackageName"] = *gqlPackageName
 	data["sqlType"] = *sqlType
 	data["sqlConnStr"] = *sqlConnStr
 	data["serverPort"] = *serverPort
@@ -496,6 +506,7 @@ func generate(conf *dbmeta.Config) error {
 	*xmlNameFormat = strings.ToLower(*xmlNameFormat)
 	modelDir := filepath.Join(*outDir, *modelPackageName)
 	apiDir := filepath.Join(*outDir, *apiPackageName)
+	gqlDir := filepath.Join(*outDir, *gqlPackageName)
 	daoDir := filepath.Join(*outDir, *daoPackageName)
 
 	err = os.MkdirAll(*outDir, 0777)
@@ -522,6 +533,14 @@ func generate(conf *dbmeta.Config) error {
 		err = os.MkdirAll(apiDir, 0777)
 		if err != nil && !*overwrite {
 			fmt.Print(au.Red(fmt.Sprintf("unable to create apiDir: %s error: %v\n", apiDir, err)))
+			return err
+		}
+	}
+
+	if *useGraphql {
+		err = os.MkdirAll(gqlDir, 0777)
+		if err != nil && !*overwrite {
+			fmt.Print(au.Red(fmt.Sprintf("unable to create gqlDir: %s error: %v\n", gqlDir, err)))
 			return err
 		}
 	}
@@ -605,6 +624,16 @@ func generate(conf *dbmeta.Config) error {
 
 		}
 
+		if *useGraphql {
+			gqlFile := filepath.Join(gqlDir, CreateGoSrcFileName(tableName))
+			err = conf.WriteTemplate(ControllerTmpl, modelInfo, gqlFile)
+			if err != nil {
+				fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
+				os.Exit(1)
+			}
+
+		}
+
 		if *daoGenerate {
 			// write dao
 			outputFile := filepath.Join(daoDir, CreateGoSrcFileName(tableName))
@@ -620,6 +649,12 @@ func generate(conf *dbmeta.Config) error {
 
 	if *restAPIGenerate {
 		if err = generateRestBaseFiles(conf, apiDir); err != nil {
+			return err
+		}
+	}
+
+	if *useGraphql {
+		if err = generateGraphqlBaseFiles(conf, gqlDir); err != nil {
 			return err
 		}
 	}
@@ -710,6 +745,35 @@ func generateRestBaseFiles(conf *dbmeta.Config, apiDir string) (err error) {
 	}
 
 	err = conf.WriteTemplate(HTTPUtilsTmpl, data, filepath.Join(apiDir, "http_utils.go"))
+	if err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
+		os.Exit(1)
+	}
+
+	return nil
+}
+
+func generateGraphqlBaseFiles(conf *dbmeta.Config, gqlDir string) (err error) {
+	data := map[string]interface{}{}
+	var HandlerTmpl *dbmeta.GenTemplate
+	var QueryTmpl *dbmeta.GenTemplate
+
+	if HandlerTmpl, err = LoadTemplate("graphql_handler.go.tmpl"); err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
+		return
+	}
+	if QueryTmpl, err = LoadTemplate("graphql_query.go.tmpl"); err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
+		return
+	}
+
+	err = conf.WriteTemplate(HandlerTmpl, data, filepath.Join(gqlDir, "handler.go"))
+	if err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
+		os.Exit(1)
+	}
+
+	err = conf.WriteTemplate(QueryTmpl, data, filepath.Join(gqlDir, "query.go"))
 	if err != nil {
 		fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
 		os.Exit(1)
@@ -991,6 +1055,7 @@ func regenCmdLine() []string {
 	cmdLine = append(cmdLine, fmt.Sprintf(" --model=%s", *modelPackageName))
 	cmdLine = append(cmdLine, fmt.Sprintf(" --dao=%s", *daoPackageName))
 	cmdLine = append(cmdLine, fmt.Sprintf(" --api=%s", *apiPackageName))
+	cmdLine = append(cmdLine, fmt.Sprintf(" --gql=%s", *gqlPackageName))
 	cmdLine = append(cmdLine, fmt.Sprintf(" --out=%s", "./"))
 	cmdLine = append(cmdLine, fmt.Sprintf(" --module=%s", *module))
 	if *addJSONAnnotation {
@@ -1012,6 +1077,9 @@ func regenCmdLine() []string {
 		cmdLine = append(cmdLine, fmt.Sprintf(" --db"))
 	}
 	if *useGureguTypes {
+		cmdLine = append(cmdLine, fmt.Sprintf(" --guregu"))
+	}
+	if *useGraphql {
 		cmdLine = append(cmdLine, fmt.Sprintf(" --guregu"))
 	}
 	if *modGenerate {

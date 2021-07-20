@@ -7,6 +7,7 @@ import (
     "github.com/satori/go.uuid"
     {{if .UseGuregu}} "github.com/guregu/null" {{end}}
 	"gorm.io/gorm"
+	{{if .UseGraphql}} "github.com/graphql-go/graphql" {{end}}
 )
 
 /*
@@ -16,6 +17,11 @@ DB Table Details
 {{if $ddl }}
 {{$ddl}}
 {{- end}}
+
+
+{{if .UseGraphql}}
+{{end}}
+
 
 JSON Sample
 -------------------------------------
