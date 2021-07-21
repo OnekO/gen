@@ -43,7 +43,7 @@ var (
 
 	daoPackageName  = goopt.String([]string{"--dao"}, "dao", "name to set for dao package")
 	apiPackageName  = goopt.String([]string{"--api"}, "api", "name to set for api package")
-	gqlPackageName  = goopt.String([]string{"--gql"}, "graphql", "name to set for graphql package")
+	graphqlPackageName  = goopt.String([]string{"--gql"}, "graphql", "name to set for graphql package")
 	grpcPackageName = goopt.String([]string{"--grpc"}, "grpc", "name to set for grpc package")
 	outDir          = goopt.String([]string{"--out"}, ".", "output dir")
 	module          = goopt.String([]string{"--module"}, "example.com/example", "module path")
@@ -347,8 +347,8 @@ func initialize(conf *dbmeta.Config) {
 	if apiPackageName == nil || *apiPackageName == "" {
 		*apiPackageName = "api"
 	}
-	if gqlPackageName == nil || *gqlPackageName == "" {
-		*gqlPackageName = "graphql"
+	if graphqlPackageName == nil || *graphqlPackageName == "" {
+		*graphqlPackageName = "graphql"
 	}
 
 	conf.SQLType = *sqlType
@@ -385,8 +385,8 @@ func initialize(conf *dbmeta.Config) {
 	conf.APIPackageName = *apiPackageName
 	conf.APIFQPN = *module + "/" + *apiPackageName
 
-	conf.GraphqlPackageName = *gqlPackageName
-	conf.GraphqlFQPN = *module + "/" + *gqlPackageName
+	conf.GraphqlPackageName = *graphqlPackageName
+	conf.GraphqlFQPN = *module + "/" + *graphqlPackageName
 
 	conf.GrpcPackageName = *grpcPackageName
 	conf.GrpcFQPN = *module + "/" + *grpcPackageName
@@ -464,7 +464,7 @@ func execTemplate(conf *dbmeta.Config, genTemplate *dbmeta.GenTemplate, data map
 	data["modelPackageName"] = *modelPackageName
 	data["daoPackageName"] = *daoPackageName
 	data["apiPackageName"] = *apiPackageName
-	data["gqlPackageName"] = *gqlPackageName
+	data["graphqlPackageName"] = *graphqlPackageName
 	data["sqlType"] = *sqlType
 	data["sqlConnStr"] = *sqlConnStr
 	data["serverPort"] = *serverPort
@@ -506,7 +506,7 @@ func generate(conf *dbmeta.Config) error {
 	*xmlNameFormat = strings.ToLower(*xmlNameFormat)
 	modelDir := filepath.Join(*outDir, *modelPackageName)
 	apiDir := filepath.Join(*outDir, *apiPackageName)
-	gqlDir := filepath.Join(*outDir, *gqlPackageName)
+	gqlDir := filepath.Join(*outDir, *graphqlPackageName)
 	daoDir := filepath.Join(*outDir, *daoPackageName)
 
 	err = os.MkdirAll(*outDir, 0777)
@@ -547,12 +547,18 @@ func generate(conf *dbmeta.Config) error {
 	var ModelTmpl *dbmeta.GenTemplate
 	var ModelBaseTmpl *dbmeta.GenTemplate
 	var ControllerTmpl *dbmeta.GenTemplate
+	var GraphqlObjectTmpl *dbmeta.GenTemplate
 	var DaoTmpl *dbmeta.GenTemplate
 
 	var DaoInitTmpl *dbmeta.GenTemplate
 	var GoModuleTmpl *dbmeta.GenTemplate
 
 	if ControllerTmpl, err = LoadTemplate("api.go.tmpl"); err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
+		return err
+	}
+
+	if GraphqlObjectTmpl, err = LoadTemplate("graphql_object.go.tmpl"); err != nil {
 		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
 		return err
 	}
@@ -626,7 +632,7 @@ func generate(conf *dbmeta.Config) error {
 
 		if *useGraphql {
 			gqlFile := filepath.Join(gqlDir, CreateGoSrcFileName(tableName))
-			err = conf.WriteTemplate(ControllerTmpl, modelInfo, gqlFile)
+			err = conf.WriteTemplate(GraphqlObjectTmpl, modelInfo, gqlFile)
 			if err != nil {
 				fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
 				os.Exit(1)
@@ -1055,7 +1061,7 @@ func regenCmdLine() []string {
 	cmdLine = append(cmdLine, fmt.Sprintf(" --model=%s", *modelPackageName))
 	cmdLine = append(cmdLine, fmt.Sprintf(" --dao=%s", *daoPackageName))
 	cmdLine = append(cmdLine, fmt.Sprintf(" --api=%s", *apiPackageName))
-	cmdLine = append(cmdLine, fmt.Sprintf(" --gql=%s", *gqlPackageName))
+	cmdLine = append(cmdLine, fmt.Sprintf(" --gql=%s", *graphqlPackageName))
 	cmdLine = append(cmdLine, fmt.Sprintf(" --out=%s", "./"))
 	cmdLine = append(cmdLine, fmt.Sprintf(" --module=%s", *module))
 	if *addJSONAnnotation {

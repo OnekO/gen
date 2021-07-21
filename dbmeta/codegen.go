@@ -576,7 +576,7 @@ func (c *Config) WriteTemplate(genTemplate *GenTemplate, data map[string]interfa
 	data["apiPackageName"] = c.APIPackageName
 
 	data["graphqlFQPN"] = c.GraphqlFQPN
-	data["grapgqlPackageName"] = c.GraphqlPackageName
+	data["graphqlPackageName"] = c.GraphqlPackageName
 
 	data["sqlType"] = c.SQLType
 	data["sqlConnStr"] = c.SQLConnStr
@@ -960,12 +960,12 @@ func NewConfig(templateLoader TemplateLoader) *Config {
 	modelPackageName := "model"
 	daoPackageName := "dao"
 	apiPackageName := "api"
-    gqlPackageName := "apigraphql"
+	graphqlPackageName := "graphql"
 
 	conf.ModelPackageName = modelPackageName
 	conf.DaoPackageName = daoPackageName
 	conf.APIPackageName = apiPackageName
-	conf.GraphqlPackageName = gqlPackageName
+	conf.GraphqlPackageName = graphqlPackageName
 
 	conf.AddJSONAnnotation = true
 	conf.AddXMLAnnotation = true
@@ -991,7 +991,7 @@ func NewConfig(templateLoader TemplateLoader) *Config {
 	conf.ModelFQPN = module + "/" + modelPackageName
 	conf.DaoFQPN = module + "/" + daoPackageName
 	conf.APIFQPN = module + "/" + apiPackageName
-	conf.GraphqlFQPN = module + "/" + gqlPackageName
+	conf.GraphqlFQPN = module + "/" + graphqlPackageName
 
 	if conf.ServerPort == 80 {
 		conf.Swagger.Host = conf.ServerHost

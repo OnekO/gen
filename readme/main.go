@@ -159,14 +159,14 @@ func initialize(conf *dbmeta.Config) {
 	modelPackageName := "model"
 	daoPackageName := "dao"
 	apiPackageName := "api"
-	gqlPackageName := "graphql"
+	graphqlPackageName := "graphql"
 
 	conf.SQLType = *sqlType
 	conf.SQLDatabase = *sqlDatabase
 	conf.ModelPackageName = modelPackageName
 	conf.DaoPackageName = daoPackageName
 	conf.APIPackageName = apiPackageName
-	conf.GraphqlPackageName = gqlPackageName
+	conf.GraphqlPackageName = graphqlPackageName
 
 	conf.AddJSONAnnotation = true
 	conf.AddXMLAnnotation = true
@@ -193,7 +193,7 @@ func initialize(conf *dbmeta.Config) {
 	conf.ModelFQPN = module + "/" + modelPackageName
 	conf.DaoFQPN = module + "/" + daoPackageName
 	conf.APIFQPN = module + "/" + apiPackageName
-	conf.GraphqlFQPN = module + "/" + gqlPackageName
+	conf.GraphqlFQPN = module + "/" + graphqlPackageName
 
 	conf.Swagger.Version = "1.0.0"
 	conf.Swagger.BasePath = "/"
