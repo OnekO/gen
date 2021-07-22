@@ -60,6 +60,12 @@ type SQLMapping struct {
 	SwaggerType string `json:"swagger_type"`
 }
 
+type ForeignKey struct {
+	Key string
+	Table string
+	FK string
+}
+
 func (m *SQLMapping) String() interface{} {
 	return fmt.Sprintf("SQLType: %-15s  GoType: %-15s GureguType: %-15s GoNullableType: %-15s JSONType: %-15s ProtobufType: %-15s",
 		m.SQLType,
@@ -70,6 +76,10 @@ func (m *SQLMapping) String() interface{} {
 // IsAutoIncrement return is column is a primary key column
 func (ci *columnMeta) IsPrimaryKey() bool {
 	return ci.isPrimaryKey
+}
+
+func (ci *columnMeta) IsForeignKey() bool {
+	return ci.isForeignKey
 }
 
 // IsArray return is column is an array type
@@ -87,6 +97,7 @@ type columnMeta struct {
 	// ct              *sql.ColumnType
 	nullable         bool
 	isPrimaryKey     bool
+	isForeignKey     bool
 	isAutoIncrement  bool
 	isArray          bool
 	colDDL           string
@@ -189,6 +200,7 @@ type ColumnMeta interface {
 	DatabaseTypePretty() string
 	Index() int
 	IsPrimaryKey() bool
+	IsForeignKey() bool
 	IsAutoIncrement() bool
 	IsArray() bool
 	ColumnType() string
@@ -254,6 +266,7 @@ type ModelInfo struct {
 	DBMeta          DbTableMeta
 	Instance        interface{}
 	CodeFields      []*FieldInfo
+	HasTime			bool
 }
 
 // Notes notes on table generation
@@ -298,6 +311,8 @@ type FieldInfo struct {
 	XMLAnnotation         string
 	DBAnnotation          string
 	GoGoMoreTags          string
+	GraphqlFieldType      string
+	IsTimeField			  bool
 }
 
 // GetFunctionName get function name
@@ -320,10 +335,11 @@ func LoadMeta(sqlType string, db *sql.DB, sqlDatabase, tableName string) (DbTabl
 }
 
 // GenerateFieldsTypes FieldInfo slice from DbTableMeta
-func (c *Config) GenerateFieldsTypes(dbMeta DbTableMeta) ([]*FieldInfo, error) {
+func (c *Config) GenerateFieldsTypes(dbMeta DbTableMeta) ([]*FieldInfo, bool, error) {
 
 	var fields []*FieldInfo
 	field := ""
+	hasTime := false
 	for i, col := range dbMeta.Columns() {
 		fieldName := col.Name()
 
@@ -412,6 +428,7 @@ func (c *Config) GenerateFieldsTypes(dbMeta DbTableMeta) ([]*FieldInfo, error) {
 		fi.Code = field
 		fi.GoFieldName = fieldName
 		fi.GoFieldType = valueType
+		fi.IsTimeField = valueType == "time.Time"
 		fi.GoAnnotations = annotations
 		fi.FakeData = fakeData
 		fi.Comment = col.String()
@@ -423,13 +440,38 @@ func (c *Config) GenerateFieldsTypes(dbMeta DbTableMeta) ([]*FieldInfo, error) {
 		fi.PrimaryKeyFieldParser = primaryKeyFieldParser
 		fi.SQLMapping = sqlMapping
 		fi.GoGoMoreTags = GoGoMoreTags
+		fi.GraphqlFieldType = getGraphqlFieldType(strings.ToLower(col.DatabaseTypeName()), col.IsPrimaryKey())
 
 		fi.JSONFieldName = checkDupeJSONFieldName(fields, fi.JSONFieldName)
 		fi.ProtobufFieldName = checkDupeProtoBufFieldName(fields, fi.ProtobufFieldName)
 
+		if valueType == "time.Time" {
+			hasTime = true
+		}
 		fields = append(fields, fi)
 	}
-	return fields, nil
+	return fields, hasTime, nil
+}
+
+func getGraphqlFieldType(s string, isPrimary bool) string {
+	if isPrimary {
+		return "ID"
+	}
+	switch s {
+		case "uint":
+		case "int":
+		case "bigint":
+		case "ubigint":
+		case "usmallint":
+		case "smallint":
+			return "Int"
+		case "timestamp":
+			return "DateTime"
+		case "varchar":
+		case "text":
+			return "String"
+	}
+	return "String"
 }
 
 func formatFieldName(nameFormat string, name string) string {
@@ -740,7 +782,7 @@ func GenerateModelInfo(tables map[string]*ModelInfo, dbMeta DbTableMeta,
 	structName := Replace(conf.ModelNamingTemplate, tableName)
 	structName = CheckForDupeTable(tables, structName)
 
-	fields, err := conf.GenerateFieldsTypes(dbMeta)
+	fields, hasTime, err := conf.GenerateFieldsTypes(dbMeta)
 	if err != nil {
 		return nil, err
 	}
@@ -796,6 +838,7 @@ func GenerateModelInfo(tables map[string]*ModelInfo, dbMeta DbTableMeta,
 		CodeFields:      fields,
 		DBMeta:          dbMeta,
 		Instance:        instance,
+		HasTime: 		 hasTime,
 	}
 
 	return modelInfo, nil

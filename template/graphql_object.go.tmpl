@@ -4,34 +4,48 @@ import (
  "{{.modelFQPN}}"
  "github.com/graphql-go/graphql"
  "gorm.io/gorm"
+ "github.com/carlosstrand/graphql-pagination-go"
 )
-
-var user = graphql.NewObject(
+{{- $singularTableName := singular .TableName}}
+var {{toLowerCamelCase .StructName}} = graphql.NewObject(
  graphql.ObjectConfig{
-  Name: "User",
+  Name: "{{$singularTableName}}",
   Fields: graphql.Fields{
-   "id":        &graphql.Field{Type: graphql.ID},
-   "name":      &graphql.Field{Type: graphql.String},
-   "age":       &graphql.Field{Type: graphql.String},
-   "createdAt": &graphql.Field{Type: graphql.String},
-   "updatedAt": &graphql.Field{Type: graphql.String},
-   "deletedAt": &graphql.Field{Type: graphql.String},
+   {{range .TableInfo.CodeFields}}
+   "{{.ColumnMeta.Name}}":        &graphql.Field{Type: graphql.{{.GraphqlFieldType}}},
+   {{end}}
   },
-  Description: "Users data",
+  Description: "{{.TableName}} data",
  },
 )
 
-func NewUsers(db *gorm.DB) *graphql.Field {
- return &graphql.Field{
-  Type: graphql.NewList(user),
-  Resolve: func(p graphql.ResolveParams) (i interface{}, e error) {
-   var u []*model.User
-   if err := db.Find(&u).Error; err != nil {
+func {{toUpperCamelCase $singularTableName}}Type() (*graphql.Object) {
+  return {{toLowerCamelCase .StructName}}
+}
+
+func New{{.StructName}}(db *gorm.DB) *graphql.Field {
+ field := pagination.Paginated(&pagination.PaginatedField{
+  Name: "{{.StructName}}",
+  Type: {{toLowerCamelCase .StructName}},
+  DataResolve: func(p graphql.ResolveParams, page pagination.Page) (i interface{}, e error) {
+   var u []*model.{{.StructName}}
+   if err := db.Limit(page.Limit).Offset(page.Skip).Find(&u).Error; err != nil {
     // do something
    }
 
    return u, nil
   },
-  Description: "user",
- }
+  CountResolve: func(p graphql.ResolveParams, page pagination.Page) (i interface{}, e error) {
+   var count int64
+   result := db.Model(&model.Policies{}).Count(&count)
+
+   if (result.Error != nil) {
+
+   }
+   return int(count), nil
+  },
+  Description: "{{.StructName}}",
+ })
+
+ return field
 }

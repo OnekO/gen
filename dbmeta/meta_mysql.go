@@ -28,7 +28,7 @@ func LoadMysqlMeta(db *sql.DB, sqlType, sqlDatabase, tableName string) (DbTableM
 	}
 
 	m.ddl = ddl
-	colsDDL, primaryKeys := mysqlParseDDL(ddl)
+	colsDDL, primaryKeys, foreignKeys := mysqlParseDDL(ddl)
 
 	infoSchema, err := LoadTableInfoFromMSSqlInformationSchema(db, tableName)
 	if err != nil {
@@ -49,6 +49,12 @@ func LoadMysqlMeta(db *sql.DB, sqlType, sqlDatabase, tableName string) (DbTableM
 		isAutoIncrement := strings.Index(colDDL, "AUTO_INCREMENT") > -1
 		isUnsigned := strings.Index(colDDL, " unsigned ") > -1 || strings.Index(colDDL, " UNSIGNED ") > -1
 		_, isPrimaryKey := find(primaryKeys, v.Name())
+		isForeignKey := false
+		for _, element := range foreignKeys {
+			if element.Key == v.Name() {
+				isForeignKey = true
+			}
+		}
 		defaultVal := ""
 		columnType, columnLen := ParseSQLType(v.DatabaseTypeName())
 
@@ -84,6 +90,7 @@ func LoadMysqlMeta(db *sql.DB, sqlType, sqlDatabase, tableName string) (DbTableM
 			databaseTypeName: columnType,
 			nullable:         nullable,
 			isPrimaryKey:     isPrimaryKey,
+			isForeignKey:     isForeignKey,
 			isAutoIncrement:  isAutoIncrement,
 			colDDL:           colDDL,
 			defaultVal:       defaultVal,
@@ -129,7 +136,7 @@ func mysqlLoadDDL(db *sql.DB, tableName string) (ddl string, err error) {
 	return ddl2, nil
 }
 
-func mysqlParseDDL(ddl string) (colsDDL map[string]string, primaryKeys []string) {
+func mysqlParseDDL(ddl string) (colsDDL map[string]string, primaryKeys []string, foreignKeys []ForeignKey) {
 	colsDDL = make(map[string]string)
 	lines := strings.Split(ddl, "\n")
 	for _, line := range lines {
@@ -137,7 +144,6 @@ func mysqlParseDDL(ddl string) (colsDDL map[string]string, primaryKeys []string)
 		if strings.HasPrefix(line, "CREATE TABLE") || strings.HasPrefix(line, "(") || strings.HasPrefix(line, ")") {
 			continue
 		}
-
 		if line[0] == '`' {
 			idx := indexAt(line, "`", 1)
 			if idx > 0 {
@@ -162,6 +168,15 @@ func mysqlParseDDL(ddl string) (colsDDL map[string]string, primaryKeys []string)
 				currentIdx = idxR + 1
 				primaryKeys = append(primaryKeys, line[idxL+1:idxR])
 			}
+		} else if strings.HasPrefix(line, "FOREIGN KEY") || strings.HasPrefix(line, "CONSTRAINT") {
+			re := regexp.MustCompile("FOREIGN KEY \\(`(.*)`\\) REFERENCES `(.*)` \\(`(.*)`\\)")
+			match := re.FindStringSubmatch(line)
+			fmt.Println(match)
+			foreignKeys = append(foreignKeys, ForeignKey{
+				Key: match[1],
+				Table: match[2],
+				FK: match[3],
+			})
 		}
 	}
 	return

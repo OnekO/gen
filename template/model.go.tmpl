@@ -2,8 +2,7 @@ package {{.modelPackageName}}
 
 import (
     "database/sql"
-    "time"
-
+    {{if .HasTime}} "time" {{end}}
     "github.com/satori/go.uuid"
     {{if .UseGuregu}} "github.com/guregu/null" {{end}}
 	"gorm.io/gorm"
@@ -17,10 +16,6 @@ DB Table Details
 {{if $ddl }}
 {{$ddl}}
 {{- end}}
-
-
-{{if .UseGraphql}}
-{{end}}
 
 
 JSON Sample
@@ -67,6 +62,7 @@ var {{.TableName}}TableInfo = &TableInfo {
         	DatabaseTypeName: "{{.ColumnMeta.DatabaseTypeName}}",
         	DatabaseTypePretty: "{{.ColumnMeta.DatabaseTypePretty}}",
         	IsPrimaryKey: {{.ColumnMeta.IsPrimaryKey}},
+        	IsForeignKey: {{.ColumnMeta.IsForeignKey}},
         	IsAutoIncrement: {{.ColumnMeta.IsAutoIncrement}},
         	IsArray: {{.ColumnMeta.IsArray}},
         	ColumnType: "{{.ColumnMeta.ColumnType}}",

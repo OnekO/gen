@@ -1,7 +1,6 @@
 package {{.graphqlPackageName}}
 
 import (
- gql "{{.graphqlFQPN}}"
  "github.com/graphql-go/graphql"
  "gorm.io/gorm"
 )
@@ -10,7 +9,9 @@ func newQuery(db *gorm.DB) *graphql.Object {
  return graphql.NewObject(graphql.ObjectConfig{
   Name: "Query",
   Fields: graphql.Fields{
-   "Users": gql.NewUsers(db),
+   {{range $tableName, $codeInfo := .tableInfos}}
+   "{{$codeInfo.StructName}}": New{{$codeInfo.StructName}}(db),
+   {{end}}
   },
  })
 }
